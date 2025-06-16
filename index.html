@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Negative Viewer</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      position: absolute;
+      padding: 32px;
+      margin: 0;
+      gap: 16px;
+    }
+
+    #vid {
+      width: 100%;
+      height: 100%;
+    }
+
+    #tools {
+      display: flex;
+      gap: 16px;
+    }
+
+    #player {
+      overflow: hidden;
+      width: 100%;
+      flex: 1 0 auto;
+      border-radius: 8px;
+      border: 1px dotted black;
+      height: 0px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="player">
+    <video id="vid"></video>
+  </div>
+  <div id="tools">
+    <button id="but">Open WebCam</button>
+    <button id="butInv" onclick="document.getElementById('vid').style.filter = 'invert(0%)';">Normal</button>
+    <button id="butInv" onclick="document.getElementById('vid').style.filter = 'invert(100%)';">Invert</button>
+    <button id="capture">Capture Image</button>
+  </div>
+  <canvas id="canvas" style="display:none;"></canvas>
+</body>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    let but = document.getElementById("but");
+    let video = document.getElementById("vid");
+    let captureButton = document.getElementById("capture");
+    let canvas = document.getElementById("canvas");
+    let mediaDevices = navigator.mediaDevices;
+    vid.muted = true;
+   but.addEventListener("click", () => {
+  mediaDevices
+    .getUserMedia({
+      video: {
+        width: { ideal: 4096 },   // Request very high width
+        height: { ideal: 2160 },  // Request very high height
+        aspectRatio: 16 / 9,
+        frameRate: { ideal: 60 }, // Request high frame rate if available
+        facingMode: "environment" // Prefer rear camera if available
+      },
+      audio: true
+    })
+    .then((stream) => {
+      video.srcObject = stream;
+      video.addEventListener("loadedmetadata", () => {
+        video.play();
+      });
+    })
+    .catch(alert);
+});
+
+    captureButton.addEventListener("click", () => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      let context = canvas.getContext("2d");
+
+      context.filter = getComputedStyle(video).filter;
+
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      let dataURL = canvas.toDataURL("image/png");
+      let link = document.createElement("a");
+      link.href = dataURL;
+      link.download = `Capture ${new Date().toLocaleString()}.png`;
+      link.click();
+    });
+  });
+</script>
+
+</html>
