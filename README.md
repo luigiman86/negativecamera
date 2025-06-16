@@ -1,0 +1,1 @@
+I mean, I'm not a dev, I have no idea what I am doing, but I got the code from somewhere because my friend needs to digitalise negatives. Can you help me do things like make it auto crop? AI colour correction? Let the pull requests flow!
