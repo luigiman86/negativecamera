@@ -116,6 +116,7 @@
     <button id="install-btn" title="Install this app to your device">⬇️</button>
   </div>
   <canvas id="canvas" style="display:none;"></canvas>
+  <div id="toast" style="display:none;position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 16px;border-radius:4px;z-index:100;font-size:1rem;opacity:0.95;"></div>
   <script>
       document.addEventListener("DOMContentLoaded", () => {
         let but = document.getElementById("but");
@@ -232,7 +233,30 @@
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.register('service-worker.js');
         }
+
+        document.getElementById('invert-toggle').addEventListener('touchstart', function(e) {
+          showToast('Toggle negative/normal');
+        });
+        document.getElementById('but').addEventListener('touchstart', function() {
+          showToast('Open WebCam');
+        });
+        document.getElementById('capture').addEventListener('touchstart', function() {
+          showToast('Capture current frame as image');
+        });
+        document.getElementById('toggle-dark').addEventListener('touchstart', function() {
+          showToast('Toggle dark/light mode');
+        });
+        document.getElementById('install-btn').addEventListener('touchstart', function() {
+          showToast('Install this app to your device');
+        });
       });
+
+      function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 2000);
+      }
     </script>
   </body>
 </html>
