@@ -5,17 +5,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Negative Viewer</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#181a1b">
   <style>
     body {
       display: flex;
       justify-content: center;
       align-items: center;
       flex-direction: column;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      position: absolute;
+      min-height: 100vh;
       padding: 32px;
       margin: 0;
       gap: 16px;
@@ -24,23 +22,49 @@
       transition: background 0.2s, color 0.2s;
     }
 
+    #player {
+      overflow: hidden;
+      width: 100%;
+      max-width: 640px;
+      border-radius: 8px;
+      border: 1px dotted black;
+      aspect-ratio: 16/9;
+      background: #000;
+      margin-bottom: 16px;
+    }
+
     #vid {
       width: 100%;
-      height: 100%;
+      height: auto;
+      display: block;
+      background: #000;
     }
 
     #tools {
       display: flex;
+      flex-wrap: wrap;
       gap: 16px;
+      justify-content: center;
     }
 
-    #player {
-      overflow: hidden;
-      width: 100%;
-      flex: 1 0 auto;
-      border-radius: 8px;
-      border: 1px dotted black;
-      height: 0px;
+    button {
+      padding: 8px 16px;
+      border-radius: 4px;
+      border: 1px solid #888;
+      background: #f0f0f0;
+      color: #111;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    button:active {
+      background: #ddd;
+    }
+
+    /* Hide install button by default */
+    #install-btn {
+      display: none;
     }
 
     /* Dark mode styles */
@@ -50,6 +74,7 @@
     }
     body.dark-mode #player {
       border: 1px dotted #888;
+      background: #111;
     }
     body.dark-mode button {
       background: #222;
@@ -57,6 +82,7 @@
       border: 1px solid #444;
     }
 
+    /* System dark mode preference if no manual override */
     @media (prefers-color-scheme: dark) {
       body:not(.light-mode):not(.dark-mode) {
         background: #181a1b;
@@ -64,6 +90,7 @@
       }
       body:not(.light-mode):not(.dark-mode) #player {
         border: 1px dotted #888;
+        background: #111;
       }
       body:not(.light-mode):not(.dark-mode) button {
         background: #222;
@@ -76,7 +103,7 @@
 
 <body>
   <div id="player">
-    <video id="vid"></video>
+    <video id="vid" autoplay playsinline></video>
   </div>
   <div id="tools">
     <button id="but">Open WebCam</button>
@@ -84,79 +111,109 @@
     <button id="butInv" onclick="document.getElementById('vid').style.filter = 'invert(100%)';">Invert</button>
     <button id="capture">Capture Image</button>
     <button id="toggle-dark">🌙 Toggle Dark Mode</button>
+    <button id="install-btn">⬇️ Install App</button>
   </div>
   <canvas id="canvas" style="display:none;"></canvas>
-</body>
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    let but = document.getElementById("but");
-    let video = document.getElementById("vid");
-    let captureButton = document.getElementById("capture");
-    let canvas = document.getElementById("canvas");
-    let mediaDevices = navigator.mediaDevices;
-    vid.muted = true;
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      let but = document.getElementById("but");
+      let video = document.getElementById("vid");
+      let captureButton = document.getElementById("capture");
+      let canvas = document.getElementById("canvas");
+      let mediaDevices = navigator.mediaDevices;
+      video.muted = true;
 
-    // Dark mode toggle logic
-    const body = document.body;
-    const toggleDark = document.getElementById("toggle-dark");
+      // Dark mode toggle logic
+      const body = document.body;
+      const toggleDark = document.getElementById("toggle-dark");
 
-    // Apply saved preference or system preference
-    function applyTheme() {
-      const saved = localStorage.getItem("theme");
-      body.classList.remove("dark-mode", "light-mode");
-      if (saved === "dark") {
-        body.classList.add("dark-mode");
-      } else if (saved === "light") {
-        body.classList.add("light-mode");
-      }
-      // If no saved preference, system preference via media query applies
-    }
-    applyTheme();
-
-    toggleDark.addEventListener("click", () => {
-      const isDark = body.classList.contains("dark-mode");
-      if (isDark) {
-        localStorage.setItem("theme", "light");
-      } else {
-        localStorage.setItem("theme", "dark");
+      function applyTheme() {
+        const saved = localStorage.getItem("theme");
+        body.classList.remove("dark-mode", "light-mode");
+        if (saved === "dark") {
+          body.classList.add("dark-mode");
+        } else if (saved === "light") {
+          body.classList.add("light-mode");
+        }
+        // If no saved preference, system preference via media query applies
       }
       applyTheme();
-    });
 
-    // Optional: Listen for system changes if no manual override
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-      if (!localStorage.getItem("theme")) applyTheme();
-    });
+      toggleDark.addEventListener("click", () => {
+        const saved = localStorage.getItem("theme");
+        if (saved === "dark") {
+          localStorage.setItem("theme", "light");
+        } else {
+          localStorage.setItem("theme", "dark");
+        }
+        applyTheme();
+      });
 
-    but.addEventListener("click", () => {
-      mediaDevices
-        .getUserMedia({
-          audio: true
-        })
-        .then((stream) => {
-          video.srcObject = stream;
-          video.addEventListener("loadedmetadata", () => {
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        if (!localStorage.getItem("theme")) applyTheme();
+      });
+
+      but.addEventListener("click", () => {
+        mediaDevices
+          .getUserMedia({
+            video: {
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+              aspectRatio: 16 / 9,
+              facingMode: { ideal: "environment" }
+            },
+            audio: false
+          })
+          .then((stream) => {
+            video.srcObject = stream;
             video.play();
+          })
+          .catch((err) => {
+            alert("Camera error: " + err.name + "\n" + err.message);
           });
-        })
-        .catch(alert);
+      });
+
+      captureButton.addEventListener("click", () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        let context = canvas.getContext("2d");
+
+        context.filter = getComputedStyle(video).filter;
+
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        let dataURL = canvas.toDataURL("image/png");
+        let link = document.createElement("a");
+        link.href = dataURL;
+        link.download = `Capture ${new Date().toLocaleString()}.png`;
+        link.click();
+      });
+
+      // PWA install prompt logic
+      let deferredPrompt;
+      const installBtn = document.getElementById('install-btn');
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        installBtn.style.display = 'inline-block';
+      });
+
+      installBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          if (outcome === 'accepted') {
+            installBtn.style.display = 'none';
+          }
+          deferredPrompt = null;
+        }
+      });
+
+      // Register service worker for PWA
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('service-worker.js');
+      }
     });
-
-    captureButton.addEventListener("click", () => {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      let context = canvas.getContext("2d");
-
-      context.filter = getComputedStyle(video).filter;
-
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      let dataURL = canvas.toDataURL("image/png");
-      let link = document.createElement("a");
-      link.href = dataURL;
-      link.download = `Capture ${new Date().toLocaleString()}.png`;
-      link.click();
-    });
-  });
-</script>
-
+  </script>
+</body>
 </html>
