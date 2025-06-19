@@ -8,45 +8,46 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#181a1b">
   <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
     body {
       display: flex;
-      justify-content: center;
-      align-items: center;
       flex-direction: column;
       min-height: 100vh;
-      padding: 32px;
-      margin: 0;
-      gap: 16px;
       background: #fff;
       color: #111;
       transition: background 0.2s, color 0.2s;
+      align-items: stretch;
+      justify-content: flex-start;
     }
-
     #player {
+      flex: 1 1 auto;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
       overflow: hidden;
-      width: 100%;
-      max-width: 640px;
-      border-radius: 8px;
-      border: 1px dotted black;
-      aspect-ratio: 16/9;
-      background: #000;
-      margin-bottom: 16px;
     }
-
     #vid {
-      width: 100%;
-      height: auto;
-      display: block;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
       background: #000;
+      display: block;
     }
-
     #tools {
       display: flex;
       flex-wrap: wrap;
       gap: 16px;
       justify-content: center;
+      padding: 12px 0;
+      background: rgba(255,255,255,0.8);
     }
-
     button {
       padding: 8px 16px;
       border-radius: 4px;
@@ -57,40 +58,31 @@
       font-size: 1rem;
       transition: background 0.2s, color 0.2s;
     }
-
     button:active {
       background: #ddd;
     }
-
-    /* Hide install button by default */
     #install-btn {
       display: none;
     }
-
-    /* Dark mode styles */
     body.dark-mode {
       background: #181a1b;
       color: #eee;
     }
-    body.dark-mode #player {
-      border: 1px dotted #888;
-      background: #111;
+    body.dark-mode #tools {
+      background: rgba(24,26,27,0.8);
     }
     body.dark-mode button {
       background: #222;
       color: #eee;
       border: 1px solid #444;
     }
-
-    /* System dark mode preference if no manual override */
     @media (prefers-color-scheme: dark) {
       body:not(.light-mode):not(.dark-mode) {
         background: #181a1b;
         color: #eee;
       }
-      body:not(.light-mode):not(.dark-mode) #player {
-        border: 1px dotted #888;
-        background: #111;
+      body:not(.light-mode):not(.dark-mode) #tools {
+        background: rgba(24,26,27,0.8);
       }
       body:not(.light-mode):not(.dark-mode) button {
         background: #222;
@@ -102,118 +94,127 @@
 </head>
 
 <body>
-  <div id="player">
-    <video id="vid" autoplay playsinline></video>
-  </div>
-  <div id="tools">
-    <button id="but">Open WebCam</button>
-    <button id="butInv" onclick="document.getElementById('vid').style.filter = 'invert(0%)';">Normal</button>
-    <button id="butInv" onclick="document.getElementById('vid').style.filter = 'invert(100%)';">Invert</button>
-    <button id="capture">Capture Image</button>
-    <button id="toggle-dark">🌙 Toggle Dark Mode</button>
-    <button id="install-btn">⬇️ Install App</button>
-  </div>
-  <canvas id="canvas" style="display:none;"></canvas>
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      let but = document.getElementById("but");
-      let video = document.getElementById("vid");
-      let captureButton = document.getElementById("capture");
-      let canvas = document.getElementById("canvas");
-      let mediaDevices = navigator.mediaDevices;
-      video.muted = true;
+    <div id="player">
+      <video id="vid" autoplay playsinline></video>
+    </div>
+    <div id="tools">
+      <button id="but">Open WebCam</button>
+      <button id="butInv" onclick="document.getElementById('vid').style.filter = 'invert(0%)';">Normal</button>
+      <button id="butInv" onclick="document.getElementById('vid').style.filter = 'invert(100%)';">Invert</button>
+      <button id="capture">Capture Image</button>
+      <button id="toggle-dark">🌙 Toggle Dark Mode</button>
+      <button id="install-btn">⬇️ Install App</button>
+    </div>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        let but = document.getElementById("but");
+        let video = document.getElementById("vid");
+        let captureButton = document.getElementById("capture");
+        let canvas = document.getElementById("canvas");
+        let mediaDevices = navigator.mediaDevices;
+        video.muted = true;
 
-      // Dark mode toggle logic
-      const body = document.body;
-      const toggleDark = document.getElementById("toggle-dark");
+        // Dark mode toggle logic
+        const body = document.body;
+        const toggleDark = document.getElementById("toggle-dark");
 
-      function applyTheme() {
-        const saved = localStorage.getItem("theme");
-        body.classList.remove("dark-mode", "light-mode");
-        if (saved === "dark") {
-          body.classList.add("dark-mode");
-        } else if (saved === "light") {
-          body.classList.add("light-mode");
-        }
-        // If no saved preference, system preference via media query applies
-      }
-      applyTheme();
-
-      toggleDark.addEventListener("click", () => {
-        const saved = localStorage.getItem("theme");
-        if (saved === "dark") {
-          localStorage.setItem("theme", "light");
-        } else {
-          localStorage.setItem("theme", "dark");
+        function applyTheme() {
+          const saved = localStorage.getItem("theme");
+          body.classList.remove("dark-mode", "light-mode");
+          if (saved === "dark") {
+            body.classList.add("dark-mode");
+          } else if (saved === "light") {
+            body.classList.add("light-mode");
+          }
         }
         applyTheme();
-      });
 
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-        if (!localStorage.getItem("theme")) applyTheme();
-      });
-
-      but.addEventListener("click", () => {
-        mediaDevices
-          .getUserMedia({
-            video: {
-              width: { ideal: 1920 },
-              height: { ideal: 1080 },
-              aspectRatio: 16 / 9,
-              facingMode: { ideal: "environment" }
-            },
-            audio: false
-          })
-          .then((stream) => {
-            video.srcObject = stream;
-            video.play();
-          })
-          .catch((err) => {
-            alert("Camera error: " + err.name + "\n" + err.message);
-          });
-      });
-
-      captureButton.addEventListener("click", () => {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        let context = canvas.getContext("2d");
-
-        context.filter = getComputedStyle(video).filter;
-
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        let dataURL = canvas.toDataURL("image/png");
-        let link = document.createElement("a");
-        link.href = dataURL;
-        link.download = `Capture ${new Date().toLocaleString()}.png`;
-        link.click();
-      });
-
-      // PWA install prompt logic
-      let deferredPrompt;
-      const installBtn = document.getElementById('install-btn');
-
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        installBtn.style.display = 'inline-block';
-      });
-
-      installBtn.addEventListener('click', async () => {
-        if (deferredPrompt) {
-          deferredPrompt.prompt();
-          const { outcome } = await deferredPrompt.userChoice;
-          if (outcome === 'accepted') {
-            installBtn.style.display = 'none';
+        toggleDark.addEventListener("click", () => {
+          const saved = localStorage.getItem("theme");
+          if (saved === "dark") {
+            localStorage.setItem("theme", "light");
+          } else {
+            localStorage.setItem("theme", "dark");
           }
-          deferredPrompt = null;
+          applyTheme();
+        });
+
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+          if (!localStorage.getItem("theme")) applyTheme();
+        });
+
+        let currentStream = null;
+
+        but.addEventListener("click", () => {
+          // Stop any existing stream
+          if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+          }
+          mediaDevices
+            .getUserMedia({
+              video: {
+                width: { ideal: 4096 },
+                height: { ideal: 2160 },
+                facingMode: { ideal: "environment" }
+              },
+              audio: false
+            })
+            .then((stream) => {
+              currentStream = stream;
+              video.srcObject = stream;
+              video.onloadedmetadata = () => {
+                // Resize video element to match stream
+                video.width = video.videoWidth;
+                video.height = video.videoHeight;
+                video.play();
+              };
+            })
+            .catch((err) => {
+              alert("Camera error: " + err.name + "\n" + err.message);
+            });
+        });
+
+        captureButton.addEventListener("click", () => {
+          // Use the actual video stream size for the capture
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          let context = canvas.getContext("2d");
+          context.filter = getComputedStyle(video).filter;
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          let dataURL = canvas.toDataURL("image/png");
+          let link = document.createElement("a");
+          link.href = dataURL;
+          link.download = `Capture ${new Date().toLocaleString()}.png`;
+          link.click();
+        });
+
+        // PWA install prompt logic
+        let deferredPrompt;
+        const installBtn = document.getElementById('install-btn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+          e.preventDefault();
+          deferredPrompt = e;
+          installBtn.style.display = 'inline-block';
+        });
+
+        installBtn.addEventListener('click', async () => {
+          if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+              installBtn.style.display = 'none';
+            }
+            deferredPrompt = null;
+          }
+        });
+
+        // Register service worker for PWA
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('service-worker.js');
         }
       });
-
-      // Register service worker for PWA
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('service-worker.js');
-      }
-    });
-  </script>
-</body>
+    </script>
+  </body>
 </html>
