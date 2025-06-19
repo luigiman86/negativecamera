@@ -41,12 +41,17 @@
       display: block;
     }
     #tools {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
       display: flex;
       flex-wrap: wrap;
       gap: 16px;
       justify-content: center;
       padding: 12px 0;
       background: rgba(255,255,255,0.8);
+      z-index: 10;
     }
     button {
       padding: 8px 16px;
@@ -90,23 +95,28 @@
         border: 1px solid #444;
       }
     }
+    @media (max-width: 600px) {
+      #tools {
+        gap: 8px;
+        padding: 8px 0;
+      }
+    }
   </style>
 </head>
 
 <body>
-    <div id="player">
-      <video id="vid" autoplay playsinline></video>
-    </div>
-    <div id="tools">
-      <button id="but">Open WebCam</button>
-      <button id="butInv" onclick="document.getElementById('vid').style.filter = 'invert(0%)';">Normal</button>
-      <button id="butInv" onclick="document.getElementById('vid').style.filter = 'invert(100%)';">Invert</button>
-      <button id="capture">Capture Image</button>
-      <button id="toggle-dark">🌙 Toggle Dark Mode</button>
-      <button id="install-btn">⬇️ Install App</button>
-    </div>
-    <canvas id="canvas" style="display:none;"></canvas>
-    <script>
+  <div id="player">
+    <video id="vid" autoplay playsinline></video>
+  </div>
+  <div id="tools">
+    <button id="but" title="Open WebCam">📹</button>
+    <button id="invert-toggle" title="Toggle negative/normal">🌓</button>
+    <button id="capture" title="Capture current frame as image">📷</button>
+    <button id="toggle-dark" title="Toggle dark/light mode">🌙</button>
+    <button id="install-btn" title="Install this app to your device">⬇️</button>
+  </div>
+  <canvas id="canvas" style="display:none;"></canvas>
+  <script>
       document.addEventListener("DOMContentLoaded", () => {
         let but = document.getElementById("but");
         let video = document.getElementById("vid");
@@ -114,6 +124,14 @@
         let canvas = document.getElementById("canvas");
         let mediaDevices = navigator.mediaDevices;
         video.muted = true;
+
+        // Invert toggle logic
+        const invertToggle = document.getElementById("invert-toggle");
+        let isInverted = false;
+        invertToggle.addEventListener("click", () => {
+          isInverted = !isInverted;
+          video.style.filter = isInverted ? "invert(100%)" : "invert(0%)";
+        });
 
         // Dark mode toggle logic
         const body = document.body;
