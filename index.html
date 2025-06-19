@@ -19,6 +19,9 @@
       padding: 32px;
       margin: 0;
       gap: 16px;
+      background: #fff;
+      color: #111;
+      transition: background 0.2s, color 0.2s;
     }
 
     #vid {
@@ -39,6 +42,35 @@
       border: 1px dotted black;
       height: 0px;
     }
+
+    /* Dark mode styles */
+    body.dark-mode {
+      background: #181a1b;
+      color: #eee;
+    }
+    body.dark-mode #player {
+      border: 1px dotted #888;
+    }
+    body.dark-mode button {
+      background: #222;
+      color: #eee;
+      border: 1px solid #444;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body:not(.light-mode):not(.dark-mode) {
+        background: #181a1b;
+        color: #eee;
+      }
+      body:not(.light-mode):not(.dark-mode) #player {
+        border: 1px dotted #888;
+      }
+      body:not(.light-mode):not(.dark-mode) button {
+        background: #222;
+        color: #eee;
+        border: 1px solid #444;
+      }
+    }
   </style>
 </head>
 
@@ -51,6 +83,7 @@
     <button id="butInv" onclick="document.getElementById('vid').style.filter = 'invert(0%)';">Normal</button>
     <button id="butInv" onclick="document.getElementById('vid').style.filter = 'invert(100%)';">Invert</button>
     <button id="capture">Capture Image</button>
+    <button id="toggle-dark">🌙 Toggle Dark Mode</button>
   </div>
   <canvas id="canvas" style="display:none;"></canvas>
 </body>
@@ -62,26 +95,52 @@
     let canvas = document.getElementById("canvas");
     let mediaDevices = navigator.mediaDevices;
     vid.muted = true;
-   but.addEventListener("click", () => {
-  mediaDevices
-    .getUserMedia({
-      video: {
-        width: { ideal: 4096 },   // Request very high width
-        height: { ideal: 2160 },  // Request very high height
-        aspectRatio: 16 / 9,
-        frameRate: { ideal: 60 }, // Request high frame rate if available
-        facingMode: "environment" // Prefer rear camera if available
-      },
-      audio: true
-    })
-    .then((stream) => {
-      video.srcObject = stream;
-      video.addEventListener("loadedmetadata", () => {
-        video.play();
-      });
-    })
-    .catch(alert);
-});
+
+    // Dark mode toggle logic
+    const body = document.body;
+    const toggleDark = document.getElementById("toggle-dark");
+
+    // Apply saved preference or system preference
+    function applyTheme() {
+      const saved = localStorage.getItem("theme");
+      body.classList.remove("dark-mode", "light-mode");
+      if (saved === "dark") {
+        body.classList.add("dark-mode");
+      } else if (saved === "light") {
+        body.classList.add("light-mode");
+      }
+      // If no saved preference, system preference via media query applies
+    }
+    applyTheme();
+
+    toggleDark.addEventListener("click", () => {
+      const isDark = body.classList.contains("dark-mode");
+      if (isDark) {
+        localStorage.setItem("theme", "light");
+      } else {
+        localStorage.setItem("theme", "dark");
+      }
+      applyTheme();
+    });
+
+    // Optional: Listen for system changes if no manual override
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+      if (!localStorage.getItem("theme")) applyTheme();
+    });
+
+    but.addEventListener("click", () => {
+      mediaDevices
+        .getUserMedia({
+          audio: true
+        })
+        .then((stream) => {
+          video.srcObject = stream;
+          video.addEventListener("loadedmetadata", () => {
+            video.play();
+          });
+        })
+        .catch(alert);
+    });
 
     captureButton.addEventListener("click", () => {
       canvas.width = video.videoWidth;
