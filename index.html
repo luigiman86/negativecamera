@@ -110,6 +110,8 @@
   </div>
   <div id="tools">
     <button id="but" title="Open WebCam">📹</button>
+    <button id="switch-camera" title="Switch camera">🔄</button>
+    <select id="camera-select" style="display:none;" title="Select camera"></select>
     <button id="invert-toggle" title="Toggle negative/normal">🌓</button>
     <button id="capture" title="Capture current frame as image">📷</button>
     <button id="toggle-dark" title="Toggle dark/light mode">🌙</button>
@@ -118,95 +120,137 @@
   <canvas id="canvas" style="display:none;"></canvas>
   <div id="toast" style="display:none;position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 16px;border-radius:4px;z-index:100;font-size:1rem;opacity:0.95;"></div>
   <script>
-      document.addEventListener("DOMContentLoaded", () => {
-        let but = document.getElementById("but");
-        let video = document.getElementById("vid");
-        let captureButton = document.getElementById("capture");
-        let canvas = document.getElementById("canvas");
-        let mediaDevices = navigator.mediaDevices;
-        video.muted = true;
+    document.addEventListener("DOMContentLoaded", () => {
+      let but = document.getElementById("but");
+      let video = document.getElementById("vid");
+      let captureButton = document.getElementById("capture");
+      let canvas = document.getElementById("canvas");
+      let mediaDevices = navigator.mediaDevices;
+      video.muted = true;
 
-        // Invert toggle logic
-        const invertToggle = document.getElementById("invert-toggle");
-        let isInverted = false;
-        invertToggle.addEventListener("click", () => {
-          isInverted = !isInverted;
-          video.style.filter = isInverted ? "invert(100%)" : "invert(0%)";
-        });
+      // Invert toggle logic
+      const invertToggle = document.getElementById("invert-toggle");
+      let isInverted = false;
+      invertToggle.addEventListener("click", () => {
+        isInverted = !isInverted;
+        video.style.filter = isInverted ? "invert(100%)" : "invert(0%)";
+      });
 
-        // Dark mode toggle logic
-        const body = document.body;
-        const toggleDark = document.getElementById("toggle-dark");
+      // Dark mode toggle logic
+      const body = document.body;
+      const toggleDark = document.getElementById("toggle-dark");
 
-        function applyTheme() {
-          const saved = localStorage.getItem("theme");
-          body.classList.remove("dark-mode", "light-mode");
-          if (saved === "dark") {
-            body.classList.add("dark-mode");
-          } else if (saved === "light") {
-            body.classList.add("light-mode");
-          }
+      function applyTheme() {
+        const saved = localStorage.getItem("theme");
+        body.classList.remove("dark-mode", "light-mode");
+        if (saved === "dark") {
+          body.classList.add("dark-mode");
+        } else if (saved === "light") {
+          body.classList.add("light-mode");
+        }
+      }
+      applyTheme();
+
+      toggleDark.addEventListener("click", () => {
+        const saved = localStorage.getItem("theme");
+        if (saved === "dark") {
+          localStorage.setItem("theme", "light");
+        } else {
+          localStorage.setItem("theme", "dark");
         }
         applyTheme();
+      });
 
-        toggleDark.addEventListener("click", () => {
-          const saved = localStorage.getItem("theme");
-          if (saved === "dark") {
-            localStorage.setItem("theme", "light");
-          } else {
-            localStorage.setItem("theme", "dark");
-          }
-          applyTheme();
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        if (!localStorage.getItem("theme")) applyTheme();
+      });
+
+      // Camera switching/select logic
+      let currentStream = null;
+      let facingMode = "environment"; // Default to rear camera
+      let deviceList = [];
+      const switchCameraBtn = document.getElementById('switch-camera');
+      const cameraSelect = document.getElementById('camera-select');
+
+      // Enumerate devices and populate select (desktop)
+      async function updateCameraList() {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        deviceList = devices.filter(d => d.kind === 'videoinput');
+        cameraSelect.innerHTML = '';
+        deviceList.forEach((device, idx) => {
+          const option = document.createElement('option');
+          option.value = device.deviceId;
+          option.text = device.label || `Camera ${idx + 1}`;
+          cameraSelect.appendChild(option);
         });
+        // Show select if more than one camera (desktop)
+        cameraSelect.style.display = deviceList.length > 1 ? 'inline-block' : 'none';
+        // Hide switch button if only one camera
+        switchCameraBtn.style.display = deviceList.length > 1 ? 'inline-block' : 'none';
+      }
 
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-          if (!localStorage.getItem("theme")) applyTheme();
+      // Start camera with constraints
+      async function startCamera(constraints) {
+        if (currentStream) {
+          currentStream.getTracks().forEach(track => track.stop());
+        }
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia(constraints);
+          currentStream = stream;
+          video.srcObject = stream;
+          video.onloadedmetadata = () => {
+            video.width = video.videoWidth;
+            video.height = video.videoHeight;
+            video.play();
+          };
+        } catch (err) {
+          alert("Camera error: " + err.name + "\n" + err.message);
+        }
+      }
+
+      // Handle switch camera (mobile)
+      switchCameraBtn.addEventListener('click', async () => {
+        // On mobile, toggle facingMode
+        facingMode = (facingMode === "environment") ? "user" : "environment";
+        await startCamera({
+          video: {
+            facingMode: { exact: facingMode },
+            width: { ideal: 4096 },
+            height: { ideal: 2160 }
+          },
+          audio: false
         });
+      });
 
-        let currentStream = null;
-        let facingMode = "environment"; // Default to rear camera
-        let deviceList = [];
-        const switchCameraBtn = document.getElementById('switch-camera');
-        const cameraSelect = document.getElementById('camera-select');
+      // Handle camera select (desktop)
+      cameraSelect.addEventListener('change', async () => {
+        const deviceId = cameraSelect.value;
+        await startCamera({
+          video: {
+            deviceId: { exact: deviceId },
+            width: { ideal: 4096 },
+            height: { ideal: 2160 }
+          },
+          audio: false
+        });
+      });
 
-        // Enumerate devices and populate select (desktop)
-        async function updateCameraList() {
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          deviceList = devices.filter(d => d.kind === 'videoinput');
-          cameraSelect.innerHTML = '';
-          deviceList.forEach((device, idx) => {
-            const option = document.createElement('option');
-            option.value = device.deviceId;
-            option.text = device.label || `Camera ${idx + 1}`;
-            cameraSelect.appendChild(option);
+      // Update camera list on load and when devices change
+      navigator.mediaDevices.addEventListener('devicechange', updateCameraList);
+      updateCameraList();
+
+      // When opening webcam, use selected device or facingMode
+      but.addEventListener("click", async () => {
+        if (cameraSelect.style.display === 'inline-block' && cameraSelect.value) {
+          await startCamera({
+            video: {
+              deviceId: { exact: cameraSelect.value },
+              width: { ideal: 4096 },
+              height: { ideal: 2160 }
+            },
+            audio: false
           });
-          // Show select if more than one camera (desktop)
-          cameraSelect.style.display = deviceList.length > 1 ? 'inline-block' : 'none';
-        }
-
-        // Start camera with constraints
-        async function startCamera(constraints) {
-          if (currentStream) {
-            currentStream.getTracks().forEach(track => track.stop());
-          }
-          try {
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
-            currentStream = stream;
-            video.srcObject = stream;
-            video.onloadedmetadata = () => {
-              video.width = video.videoWidth;
-              video.height = video.videoHeight;
-              video.play();
-            };
-          } catch (err) {
-            alert("Camera error: " + err.name + "\n" + err.message);
-          }
-        }
-
-        // Handle switch camera (mobile)
-        switchCameraBtn.addEventListener('click', async () => {
-          // On mobile, toggle facingMode
-          facingMode = (facingMode === "environment") ? "user" : "environment";
+        } else {
           await startCamera({
             video: {
               facingMode: { exact: facingMode },
@@ -215,111 +259,74 @@
             },
             audio: false
           });
-        });
-
-        // Handle camera select (desktop)
-        cameraSelect.addEventListener('change', async () => {
-          const deviceId = cameraSelect.value;
-          await startCamera({
-            video: {
-              deviceId: { exact: deviceId },
-              width: { ideal: 4096 },
-              height: { ideal: 2160 }
-            },
-            audio: false
-          });
-        });
-
-        // Update camera list on load and when devices change
-        navigator.mediaDevices.addEventListener('devicechange', updateCameraList);
-        updateCameraList();
-
-        // When opening webcam, use selected device or facingMode
-        but.addEventListener("click", async () => {
-          if (cameraSelect.style.display === 'inline-block' && cameraSelect.value) {
-            await startCamera({
-              video: {
-                deviceId: { exact: cameraSelect.value },
-                width: { ideal: 4096 },
-                height: { ideal: 2160 }
-              },
-              audio: false
-            });
-          } else {
-            await startCamera({
-              video: {
-                facingMode: { exact: facingMode },
-                width: { ideal: 4096 },
-                height: { ideal: 2160 }
-              },
-              audio: false
-            });
-          }
-        });
-
-        captureButton.addEventListener("click", () => {
-          // Use the actual video stream size for the capture
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          let context = canvas.getContext("2d");
-          context.filter = getComputedStyle(video).filter;
-          context.drawImage(video, 0, 0, canvas.width, canvas.height);
-          let dataURL = canvas.toDataURL("image/png");
-          let link = document.createElement("a");
-          link.href = dataURL;
-          link.download = `Capture ${new Date().toLocaleString()}.png`;
-          link.click();
-        });
-
-        // PWA install prompt logic
-        let deferredPrompt;
-        const installBtn = document.getElementById('install-btn');
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-          e.preventDefault();
-          deferredPrompt = e;
-          installBtn.style.display = 'inline-block';
-        });
-
-        installBtn.addEventListener('click', async () => {
-          if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            if (outcome === 'accepted') {
-              installBtn.style.display = 'none';
-            }
-            deferredPrompt = null;
-          }
-        });
-
-        // Register service worker for PWA
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.register('service-worker.js');
         }
-
-        document.getElementById('invert-toggle').addEventListener('touchstart', function(e) {
-          showToast('Toggle negative/normal');
-        });
-        document.getElementById('but').addEventListener('touchstart', function() {
-          showToast('Open WebCam');
-        });
-        document.getElementById('capture').addEventListener('touchstart', function() {
-          showToast('Capture current frame as image');
-        });
-        document.getElementById('toggle-dark').addEventListener('touchstart', function() {
-          showToast('Toggle dark/light mode');
-        });
-        document.getElementById('install-btn').addEventListener('touchstart', function() {
-          showToast('Install this app to your device');
-        });
       });
 
-      function showToast(msg) {
-        const toast = document.getElementById('toast');
-        toast.textContent = msg;
-        toast.style.display = 'block';
-        setTimeout(() => { toast.style.display = 'none'; }, 2000);
-      }
-    </script>
-  </body>
+      captureButton.addEventListener("click", () => {
+        // Use the actual video stream size for the capture
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        let context = canvas.getContext("2d");
+        context.filter = getComputedStyle(video).filter;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        let dataURL = canvas.toDataURL("image/png");
+        let link = document.createElement("a");
+        link.href = dataURL;
+        link.download = `Capture ${new Date().toLocaleString()}.png`;
+        link.click();
+      });
+
+      // PWA install prompt logic
+      let deferredPrompt;
+      const installBtn = document.getElementById('install-btn');
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        installBtn.style.display = 'inline-block';
+      });
+
+      installBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          if (outcome === 'accepted') {
+            installBtn.style.display = 'none';
+          }
+          deferredPrompt = null;
+        }
+      });
+
+      // Mobile-friendly toast help
+      document.getElementById('invert-toggle').addEventListener('touchstart', function(e) {
+        showToast('Toggle negative/normal');
+      });
+      document.getElementById('but').addEventListener('touchstart', function() {
+        showToast('Open WebCam');
+      });
+      document.getElementById('capture').addEventListener('touchstart', function() {
+        showToast('Capture current frame as image');
+      });
+      document.getElementById('toggle-dark').addEventListener('touchstart', function() {
+        showToast('Toggle dark/light mode');
+      });
+      document.getElementById('install-btn').addEventListener('touchstart', function() {
+        showToast('Install this app to your device');
+      });
+      document.getElementById('switch-camera').addEventListener('touchstart', function() {
+        showToast('Switch camera');
+      });
+      document.getElementById('camera-select').addEventListener('touchstart', function() {
+        showToast('Select camera');
+      });
+    });
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 2000);
+    }
+  </script>
+</body>
 </html>
