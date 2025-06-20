@@ -172,6 +172,10 @@
       const switchCameraBtn = document.getElementById('switch-camera');
       const cameraSelect = document.getElementById('camera-select');
 
+      function isMobile() {
+        return /Mobi|Android/i.test(navigator.userAgent) || window.matchMedia('(pointer:coarse)').matches;
+      }
+
       // Enumerate devices and populate select (desktop)
       async function updateCameraList() {
         const devices = await navigator.mediaDevices.enumerateDevices();
@@ -183,10 +187,9 @@
           option.text = device.label || `Camera ${idx + 1}`;
           cameraSelect.appendChild(option);
         });
-        // Show select if more than one camera (desktop)
         cameraSelect.style.display = deviceList.length > 1 ? 'inline-block' : 'none';
-        // Hide switch button if only one camera
-        switchCameraBtn.style.display = deviceList.length > 1 ? 'inline-block' : 'none';
+        // Always show switch button on mobile, or if more than one camera
+        switchCameraBtn.style.display = (isMobile() || deviceList.length > 1) ? 'inline-block' : 'none';
       }
 
       // Start camera with constraints
@@ -250,10 +253,18 @@
             },
             audio: false
           });
-        } else {
+        } else if (isMobile()) {
           await startCamera({
             video: {
               facingMode: { exact: facingMode },
+              width: { ideal: 4096 },
+              height: { ideal: 2160 }
+            },
+            audio: false
+          });
+        } else {
+          await startCamera({
+            video: {
               width: { ideal: 4096 },
               height: { ideal: 2160 }
             },
