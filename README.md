@@ -15,7 +15,7 @@ Everything happens on your device. There is no server, no account, and nothing i
 - **🔦 Torch** — appears only if your camera has one. Even light matters more than resolution when scanning a negative.
 - **🌙 Dark/light** — follows your system setting until you override it.
 
-The small badge in the top-left shows the camera resolution on the left and the size of the saved image on the right.
+Hover a button for its tooltip, or tap it on a phone for the same hint. The small badge in the top-left shows the camera resolution on the left, the size of the saved image in the middle, and which camera is currently in use.
 
 ## Notes on the implementation
 
@@ -27,6 +27,8 @@ A few things that are less obvious than they look:
 - **Captures go through `toBlob`, not `toDataURL`.** A 4K frame as a base64 data URL is tens of megabytes of string, which can crash the tab on a phone.
 - **Filenames are `negative-YYYYMMDD-HHMMSS-NNN.png`** — no colons, which are illegal in filenames on Windows, and a counter so two captures in the same second do not collide.
 - **The service worker precaches the app shell**, so it opens offline once installed. It is registered as `./service-worker.js` so it works in a subdirectory as well as at a domain root.
+- **Tooltips are drawn by the app, not the browser.** A single shared tooltip can only hold one piece of text, so it ends up showing whichever control was used last; and the native `title` attribute has the same problem because the browser keeps one tooltip slot per page and will redisplay a stale label. Each control now gets its own tooltip, positioned above it and kept inside the viewport.
+- **The camera dropdown is allowed to be wide.** It is the only control that shows text, so it takes up to 460px rather than being squeezed to a fraction of the bar.
 
 ## Still to do
 
